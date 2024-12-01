@@ -19,14 +19,56 @@
 input_type(p1) -> lines;
 input_type(p2) -> lines.
 
+-doc """
+Submitted solution.
 
-p1(Lines) ->
+#### Benchmark
+
+```
+    #{total => {78377.212,ms},
+      measured => {avg,{0.707,ms},min,{0.544,ms}},
+      total_per => {0.784,ms}}
+```
+""".
+p1_submitted(Lines) ->
     {Left, Right} = lists:unzip([parse_line(Line) || Line <- Lines, byte_size(Line) > 0]),
     SortedLeft = lists:sort(Left),
     SortedRight = lists:sort(Right),
     Rezipped = lists:zip(SortedLeft, SortedRight),
     Diffs = [abs(L - R) || {L, R} <- Rezipped],
     lists:sum(Diffs).
+
+parse_line(Line) when is_binary(Line) ->
+    {Left, Rest} = string:to_integer(Line),
+    {_WS, RightString} = string:take(Rest, [$ ]),
+    {Right, <<>>} = string:to_integer(RightString),
+    {Left, Right}.
+
+
+-doc """
+Optimized by inlining the calculation of diffs.
+
+#### Benchmark
+
+As expected, the increase in speed was marginal, though measureable.
+
+```
+    #{total => {74973.51,ms},
+      measured => {avg,{0.685,ms},min,{0.531,ms}},
+      total_per => {0.75,ms}}
+```
+""".
+p1(Lines) ->
+    {Left, Right} = lists:unzip([parse_line(Line) || Line <- Lines, byte_size(Line) > 0]),
+    SortedLeft = lists:sort(Left),
+    SortedRight = lists:sort(Right),
+    p1_sum(0, SortedLeft, SortedRight).
+
+p1_sum(Sum, [], []) ->
+    Sum;
+
+p1_sum(Sum, [Left | Lefts], [Right | Rights]) ->
+    p1_sum(Sum + abs(Left - Right), Lefts, Rights).
 
 -doc """
 Submitted solution.
@@ -50,13 +92,6 @@ p2_draft1(Lines) ->
         SortedRight
     ),
     lists:sum([K * maps:get(K, Counts, 0) || K <- Left]).
-
-parse_line(Line) when is_binary(Line) ->
-    {Left, Rest} = string:to_integer(Line),
-    {_WS, RightString} = string:take(Rest, [$ ]),
-    {Right, <<>>} = string:to_integer(RightString),
-    {Left, Right}.
-
 
 -doc """
 Optimized solution.
