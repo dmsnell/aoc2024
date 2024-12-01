@@ -10,14 +10,20 @@
 -author("dmsnell").
 -behavior(aoc).
 
-%% API
--export([]).
+-export([config/0]).
 
+config() -> #{
+    p1 => {fun p1/1, lines},
+    p2 => {fun p2_draft4/1, lines},
 
--export([input_type/1, p1/1, p2/1]).
+    p1_submitted => {fun p1_submitted/1, lines},
+    p2_submitted => {fun p2_submitted/1, lines},
 
-input_type(p1) -> lines;
-input_type(p2) -> lines.
+    p2_draft2 => {fun p2_draft2/1, lines},
+    p2_draft3 => {fun p2_draft3/1, lines},
+    p2_draft4 => {fun p2_draft4/1, lines},
+    p2_draft5 => {fun p2_draft5/1, io_device}
+}.
 
 -doc """
 Submitted solution.
@@ -83,7 +89,7 @@ Runs in around 1.0ms
       total_per => {0.867,ms}}
 ```
 """.
-p2_draft1(Lines) ->
+p2_submitted(Lines) ->
     {Left, Right} = lists:unzip([parse_line(Line) || Line <- Lines, byte_size(Line) > 0]),
     SortedRight = lists:sort(Right),
     Counts = lists:foldl(
@@ -211,7 +217,7 @@ No int-parsing, custom tree.
       total_per => {0.347,ms}}
 ```
 """.
-p2(Lines) ->
+p2_draft4(Lines) ->
     {Lefts, Rights} = lists:foldl(
         fun (Line, {LeftCounts, RightCounts}) ->
             {{Left, Length}, Rest} = int(Line, 0, 0),
@@ -333,12 +339,10 @@ nt_get(NT, <<Digit, Rest/binary>>, Default) ->
 -ifdef(EUNIT).
 -include_lib("eunit/include/eunit.hrl").
 
-example(p1) -> input:lines("day1_a").
-
 p1_test() ->
-    ?assertEqual(11, p1(example(p1))).
+    ?assertEqual(11, aoc:test(day1, p1, "day1_a")).
 
 p2_test() ->
-    ?assertEqual(31, p2(example(p1))).
+    ?assertEqual(31, aoc:test(day1, p2, "day1_a")).
 
 -endif.

@@ -17,16 +17,18 @@
     solve/2,
     solve/3,
     solve_all/0,
-    print_all/0
+    print_all/0,
+    print_all/1,
+    test/3
 ]).
 
 -type input_type() :: raw | groups_and_lines | lines | number_list.
+-type runtime_config() :: {
+    fun((Input :: term()) -> term()),
+    input_type()
+}.
 
--callback input_type(atom()) -> input_type().
--callback parse_input(term()) -> term().
--callback p1(term()) -> term().
--callback p2(term()) -> term().
--optional_callbacks([parse_input/1, p2/1]).
+-callback config() -> #{atom() => runtime_config()}.
 
 solve_all() ->
     Problems = lists:flatten([get_problems(Day) || Day <- get_days()]),
@@ -47,6 +49,7 @@ sloppy_benchmark(Day, Part) ->
 
 sloppy_benchmark(Day, Part, Iterations) ->
     WarmupIterations = 25,
+    {Day, Part, Answer, _Time} = solve(Day, Part),
     _Warmup = lists:foreach(
         fun (_) -> solve(Day, Part) end,
         lists:seq(1, WarmupIterations)
@@ -62,6 +65,7 @@ sloppy_benchmark(Day, Part, Iterations) ->
         {avg, ms(lists:sum(Times) / Iterations), min, ms(lists:min(Times))}
     end),
     #{
+        answer    => Answer,
         measured  => Measured,
         total     => ms(Total / 1000),
         total_per => ms(Total / Iterations / 1000)
@@ -75,9 +79,9 @@ solve(Day, Part) ->
     solve(Day, Part, atom_to_list(Day)).
 
 solve(Day, Part, InputName) ->
+    #{Part := {Fun, InputType}} = Day:config(),
     utils:isolated(fun () ->
-        InputType = Day:input_type(Part),
-        {USecs, Value} = timer:tc(Day, Part, [parse_input(Day, get_input(InputName, InputType))]),
+        {USecs, Value} = timer:tc(Fun, [parse_input(Day, get_input(InputName, InputType))]),
         {Day, Part, Value, {USecs / 1000, ms}}
     end, infinity).
 
@@ -95,7 +99,8 @@ get_input(Name, Type) ->
 
 get_problems(Day) ->
     code:ensure_loaded(Day),
-    [{Day, Part} || Part <- [p1, p2], erlang:function_exported(Day, Part, 1) == true].
+    Config = Day:config(),
+    [{Day, Part} || Part <- maps:keys(Config), Part == p1 orelse Part == p2].
 
 parse_input(Day, Input) ->
     case erlang:function_exported(Day, parse_input, 1) of
@@ -104,6 +109,35 @@ parse_input(Day, Input) ->
     end.
 
 print_all() ->
-    Solutions = solve_all(),
-    Lines = [io_lib:format("~p~n", [S]) || S <- Solutions],
-    io:format("~s~n", [Lines]).
+    print_all(10).
+
+print_all(N) ->
+    Problems = lists:flatten([get_problems(Day) || Day <- get_days()]),
+    Solutions = lists:sort(fun problem_sort/2, [{Day, Part, sloppy_benchmark(Day, Part, N)} || {Day, Part} <- Problems]),
+    [
+        begin
+            io:format("\e[34m~p~p\e[90m (\e[36m~p\e[90m) took \e[33m~p \e[2m~p\e[m\n", [D, P, A, TV, TU]),
+            io:format("\e[90m ├ avg = \e[33m~p \e[2m~p\e[m\n", [AV, AU]),
+            io:format("\e[90m ├ min = \e[33m~p \e[2m~p\e[m\n", [MV, MU]),
+            io:format("\e[90m └ total per = \e[33m~p \e[2m~p\e[m\n\n", [TPV, TPU])
+        end
+        ||
+        {
+            D,
+            P,
+            #{
+                answer    := A,
+                total     := {TV, TU},
+                measured  := {avg, {AV, AU}, min, {MV, MU}},
+                total_per := {TPV, TPU}
+            }
+        } <- Solutions
+    ],
+    ok.
+
+test(Day, Part, InputName) ->
+    #{Part := {Fun, InputType}} = Day:config(),
+    utils:isolated(fun () ->
+        {_USecs, Value} = timer:tc(Fun, [parse_input(Day, get_input(InputName, InputType))]),
+        Value
+   end, infinity).
