@@ -28,5 +28,15 @@ day2p2 (381) took 33686.322 ms
  ├ avg = 3.272 ms
  ├ min = 2.552 ms
  └ total per = 3.369 ms
+
+day3p1 (163931492) took 3182.781 ms
+ ├ avg = 0.284 ms
+ ├ min = 0.235 ms
+ └ total per = 0.318 ms
+
+day3p2 (76911921) took 1767.602 ms
+ ├ avg = 0.148 ms
+ ├ min = 0.112 ms
+ └ total per = 0.177 ms
 ```
 [aoc2024]: (https://adventofcode.com/2024)
