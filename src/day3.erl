@@ -23,6 +23,15 @@ config() -> #{
 
 -doc """
 Submitted solution.
+
+#### Benchmark
+
+```
+    #{total => {32138.917,ms},
+      answer => 163931492,
+      measured => {avg,{0.287,ms},min,{0.227,ms}},
+      total_per => {0.321,ms}}
+```
 """.
 p1_submitted(Data) ->
     p1_parse(instruction, Data, 0).
@@ -57,6 +66,15 @@ p1_parse({int2, Int1}, Data, Sum) ->
 
 -doc """
 Submitted solution
+
+#### Benchmark
+
+```
+    #{total => {18415.56,ms},
+      answer => 76911921,
+      measured => {avg,{0.155,ms},min,{0.101,ms}},
+      total_per => {0.184,ms}}
+```
 """.
 p2_submitted(Data) ->
     p2_parse(instruction, Data, {on, 0}).
