@@ -75,6 +75,10 @@ Submitted solution
       measured => {avg,{0.155,ms},min,{0.101,ms}},
       total_per => {0.184,ms}}
 ```
+
+I modified this to skip ahead to the nearest `d` or `m` using
+`string:take(Data, "dm", true)` and then matching on the suffix
+of that split, but it took the runtime from 100 µs to about 1 ms.
 """.
 p2_submitted(Data) ->
     p2_parse(instruction, Data, {on, 0}).
