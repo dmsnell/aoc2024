@@ -5,6 +5,11 @@ Part 1 solved at 10:37pm
 Part 2 solved at 10:52pm
 Solved in 52 minutes.
 
+After submitting, I elided some logical checked to optimize
+but didn’t change the overall algorithm. To avoid copying the
+entire functions as an optimized version, I made the edits in
+place. For the submitted versions check the source history.
+
 @author Dennis Snell <dmsnell@xkq.io>
 @copyright (C) 2024, Dennis Snell <dmsnell@xkq.io>
 Created : 03. Dec 2024 9:35 PM
@@ -17,12 +22,12 @@ Created : 03. Dec 2024 9:35 PM
 
 
 config() -> #{
-    p1 => {fun p1_submitted/1, lines},
-    p2 => {fun p2_submitted/1, lines}
+    p1 => {fun p1_optimized_logic/1, lines},
+    p2 => {fun p2_optimized_logic/1, lines}
 }.
 
 
-p1_submitted(Lines) ->
+p1_optimized_logic(Lines) ->
     p1(Lines, 0).
 
 p1([], Count) ->
@@ -44,12 +49,21 @@ matches(Count, {
     <<L3a, L3b, L3c,   _, _/binary>> = L3,
     <<L4a,   _,   _, L4d, _/binary>> = L4
 }) ->
-    WE = <<L1a, L1b, L1c, L1d>>,
-    NS = <<L1a, L2a, L3a, L4a>>,
-    SE = <<L1a, L2b, L3c, L4d>>,
-    NE = <<L4a, L3b, L2c, L1d>>,
-    Matches = [1 || S <- [WE, NS, SE, NE], S == <<"XMAS">> orelse S == <<"SAMX">>],
-    matches(Count + lists:sum(Matches), {tail(L1), tail(L2), tail(L3), tail(L4)});
+    L1A = L1a == $S orelse L1a == $X,
+    L1ACount = case L1A of
+        false -> 0;
+        true  ->
+            WE = <<L1a, L1b, L1c, L1d>>,
+            NS = <<L1a, L2a, L3a, L4a>>,
+            SE = <<L1a, L2b, L3c, L4d>>,
+            lists:sum([1 || S <- [WE, NS, SE], S == <<"XMAS">> orelse S == <<"SAMX">>])
+    end,
+    L4ACount = case <<L4a, L3b, L2c, L1d>> of
+        <<"XMAS">> -> 1;
+        <<"SAMX">> -> 1;
+        _          -> 0
+    end,
+    matches(Count + L1ACount + L4ACount, {tail(L1), tail(L2), tail(L3), tail(L4)});
 
 matches(Count, {
     <<L1a, L1/binary>>,
@@ -57,13 +71,16 @@ matches(Count, {
     <<L3a, L3/binary>>,
     <<L4a, L4/binary>>
 }) ->
-    NS = <<L1a, L2a, L3a, L4a>>,
-    Matches = [1 || S <- [NS], S == <<"XMAS">> orelse S == <<"SAMX">>],
-    matches(Count + lists:sum(Matches), {L1, L2, L3, L4});
+    Matches = case <<L1a, L2a, L3a, L4a>> of
+        <<"XMAS">> -> 1;
+        <<"SAMX">> -> 1;
+        _          -> 0
+    end,
+    matches(Count + Matches, {L1, L2, L3, L4});
 
 matches(Count, {<<Prefix:4/bytes, _/binary>> = Line}) ->
-    Matches = [1 || S <- [Prefix], S == <<"XMAS">> orelse S == <<"SAMX">>],
-    matches(Count + lists:sum(Matches), {tail(Line)});
+    Matches = case Prefix of <<"XMAS">> -> 1; <<"SAMX">> -> 1; _ -> 0 end,
+    matches(Count + Matches, {tail(Line)});
 
 matches(Count, {L}) when is_binary(L), byte_size(L) < 4 ->
     Count.
@@ -72,7 +89,7 @@ matches(Count, {L}) when is_binary(L), byte_size(L) < 4 ->
 tail(<<_, Buffer/binary>>) -> Buffer.
 
 
-p2_submitted(Lines) ->
+p2_optimized_logic(Lines) ->
     p2(Lines, 0).
 
 p2([L1, L2, L3 | Lines], C) ->
@@ -87,14 +104,20 @@ x_matches(Count, {
     <<  _, L2b,   _, _/binary>> = L2,
     <<L3a,   _, L3c, _/binary>> = L3
 }) ->
-    Matches = case <<L1a, L3c, L2b, L3a, L1c>> of
-        <<"MSAMS">> -> 1;
-        <<"MSASM">> -> 1;
-        <<"SMAMS">> -> 1;
-        <<"SMASM">> -> 1;
-        _ -> 0
-    end,
-    x_matches(Count + Matches, {tail(L1), tail(L2), tail(L3)});
+    case L2b of
+        $A ->
+            Matches = case <<L1a, L3c, L2b, L3a, L1c>> of
+                <<"MSAMS">> -> 1;
+                <<"MSASM">> -> 1;
+                <<"SMAMS">> -> 1;
+                <<"SMASM">> -> 1;
+                _ -> 0
+            end,
+            x_matches(Count + Matches, {tail(L1), tail(L2), tail(L3)});
+
+        _ ->
+            x_matches(Count, {tail(L1), tail(L2), tail(L3)})
+    end;
 
 x_matches(Count, _) ->
     Count.
