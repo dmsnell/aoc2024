@@ -38,5 +38,16 @@ day3p2 (76911921) took 1767.602 ms
  ├ avg = 0.148 ms
  ├ min = 0.112 ms
  └ total per = 0.177 ms
+
+% On battery, will update on power later.
+day4p1 (2685) took 4382.141 ms
+ ├ avg = 4.289 ms
+ ├ min = 3.553 ms
+ └ total per = 4.382 ms
+
+day4p2 (2048) took 2072.968 ms
+ ├ avg = 1.992 ms
+ ├ min = 1.498 ms
+ └ total per = 2.073 ms
 ```
 [aoc2024]: (https://adventofcode.com/2024)
