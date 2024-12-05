@@ -5,6 +5,25 @@ Part 1 solved at 11:36pm
 Part 2 solved at 11:59pm
 Solved in 1h 15m.
 
+### Optimization
+
+ - Stop parsing the numbers; rely on the string inputs
+   until forming the sum at the end. There’s no need to
+   parse them into integers and the hash them when a
+   string hash would be fine from the start.
+
+ - Build a tree for part 2 for ordering, where insertion
+   would be a more direct route, and then traverse the
+   tree once built to get ordering.
+
+#### Failed optimizations
+
+ - After getting the problem working I tried to replace
+   the `map` form of `Rejects` with a list, thinking that
+   a small list membership test would be faster than hash
+   lookup, but this turned out to be wrong and the run of
+   both parts was ever so slightly slower with the list.
+
 @author Dennis Snell <dmsnell@xkq.io>
 @copyright (C) 2024, Dennis Snell <dmsnell@xkq.io>
 Created : 04. Dec 2024 10:42 PM
