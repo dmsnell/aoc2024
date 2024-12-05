@@ -25,7 +25,7 @@
 
 groups_and_lines(Name) ->
     Groups = binary:split(raw(Name), [<<"\n\n">>], [global]),
-    [[binary_to_list(Form) || Form <- binary:split(Group, [<<"\n">>], [global])] || Group <- Groups].
+    [binary:split(Group, [<<"\n">>], [global]) || Group <- Groups].
 
 -spec raw(Name :: string()) -> Data :: binary().
 
