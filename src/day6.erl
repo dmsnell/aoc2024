@@ -51,10 +51,13 @@ parse_line(Obstacles, Guard, Row, Col, <<_, Line/binary>>) ->
     parse_line(Obstacles, Guard, Row, Col + 1, Line).
 
 
-navigate({_H, _W} = Size, Obstacles, {Row, Col, _Dir} = Guard) ->
-    navigate(Size, Obstacles, Guard, log_new(Obstacles, Size, {Row, Col}, up)).
+navigate(Size, Obstacles, Guard) ->
+    navigate(Size, Obstacles, Guard, no_probe).
 
-navigate({H, W} = Size, Obstacles, {Row, Col, Dir} = _Guard, Traversed) ->
+navigate({_H, _W} = Size, Obstacles, {Row, Col, _Dir} = Guard, Probe) ->
+    navigate(Size, Obstacles, Guard, log_new(Obstacles, Size, {Row, Col}, up), Probe).
+
+navigate({H, W} = Size, Obstacles, {Row, Col, Dir} = _Guard, Traversed, Probe) ->
     From = {Row, Col},
     case Traversed of
         #{{Row, Col} := #{Dir := true}} ->
@@ -65,76 +68,81 @@ navigate({H, W} = Size, Obstacles, {Row, Col, Dir} = _Guard, Traversed) ->
                 up ->
                     case [R || {R, C} := _ <- Obstacles, C == Col, R < Row] of
                         [] ->
-                            {{1, Col}, traverse(Traversed, Dir, From, {1, Col})};
+                            {{1, Col}, traverse(Traversed, Dir, From, {1, Col}, Probe)};
                         InWay ->
                             R = lists:max(InWay),
                             navigate(
                                 Size,
                                 Obstacles,
                                 {R + 1, Col, turn(Dir)},
-                                traverse(Traversed, Dir, From, {R + 1, Col})
+                                traverse(Traversed, Dir, From, {R + 1, Col}, Probe),
+                                Probe
                             )
                     end;
 
                 down ->
                     case [R || {R, C} := _ <- Obstacles, C == Col, R > Row] of
                         [] ->
-                            {{H, Col}, traverse(Traversed, Dir, From, {H, Col})};
+                            {{H, Col}, traverse(Traversed, Dir, From, {H, Col}, Probe)};
                         InWay ->
                             R = lists:min(InWay),
                             navigate(
                                 Size,
                                 Obstacles,
                                 {R - 1, Col, turn(Dir)},
-                                traverse(Traversed, Dir, From, {R - 1, Col})
+                                traverse(Traversed, Dir, From, {R - 1, Col}, Probe),
+                                Probe
                             )
                     end;
 
                 left ->
                     case [C || {R, C} := _ <- Obstacles, R == Row, C < Col] of
                         [] ->
-                            {{Row, 1}, traverse(Traversed, Dir, From, {Row, 1})};
+                            {{Row, 1}, traverse(Traversed, Dir, From, {Row, 1}, Probe)};
                         InWay ->
                             C = lists:max(InWay),
                             navigate(
                                 Size,
                                 Obstacles,
                                 {Row, C + 1, turn(Dir)},
-                                traverse(Traversed, Dir, From, {Row, C + 1})
+                                traverse(Traversed, Dir, From, {Row, C + 1}, Probe),
+                                Probe
                             )
                     end;
 
                 right ->
                     case [C || {R, C} := _ <- Obstacles, R == Row, C > Col] of
                         [] ->
-                            {{Row, W}, traverse(Traversed, Dir, From, {Row, W})};
+                            {{Row, W}, traverse(Traversed, Dir, From, {Row, W}, Probe)};
                         InWay ->
                             C = lists:min(InWay),
                             navigate(
                                 Size,
                                 Obstacles,
                                 {Row, C - 1, turn(Dir)},
-                                traverse(Traversed, Dir, From, {Row, C - 1})
+                                traverse(Traversed, Dir, From, {Row, C - 1}, Probe),
+                                Probe
                             )
                     end
             end
     end.
 
 
-traverse(Seen, Dir, {FR, FC} = From, {TR, TC} = To) ->
+traverse(Seen, Dir, {FR, FC} = From, {TR, TC} = To, Probe) ->
     Delta = {delta(FR, TR), delta(FC, TC)},
     traverse(
-        log(Seen, From, Dir),
+        log(Seen, From, Dir, Probe),
         Dir,
         Delta,
         step(Delta, From),
-        To
+        To,
+        Probe
     ).
 
-traverse(Seen, Dir, _Delta, To, To) ->
-    log(Seen, To, Dir);
-traverse(Seen, Dir, Delta, From, To) ->
-    traverse(log(Seen, From, Dir), Dir, Delta, step(Delta, From), To).
+traverse(Seen, Dir, _Delta, To, To, Probe) ->
+    log(Seen, To, Dir, Probe);
+traverse(Seen, Dir, Delta, From, To, Probe) ->
+    traverse(log(Seen, From, Dir, Probe), Dir, Delta, step(Delta, From), To, Probe).
 
 log_new(Obstacles, Size, {_R, _C} = _At, _Dir) ->
     #{
@@ -144,66 +152,27 @@ log_new(Obstacles, Size, {_R, _C} = _At, _Dir) ->
         obstacles => Obstacles
     }.
 
-log(Seen, At, Dir) ->
+log(Seen, At, Dir, Probe) ->
     maps:update_with(
         At,
         fun (Dirs) -> Dirs#{Dir => true} end,
         #{Dir => true},
-        find_blocker(Seen, At, Dir)
+        case Probe of
+            probing ->
+                Seen;
+
+            no_probe ->
+                find_blocker(Seen, At, Dir)
+        end
     ).
 
-find_blocker(#{loops := Loops, size := Size, obstacles := Obstacles} = Seen, At, Dir) ->
-    NeedDir = turn(Dir),
-    case is_map_key(step(NeedDir, At), Obstacles) of
-        true ->
-            Seen;
+find_blocker(#{loops := Loops, size := Size, obstacles := Obstacles} = Seen, {Row, Col} = At, Dir) ->
+    case navigate(Size, Obstacles#{step(Dir, At) => true}, {Row, Col, Dir}, probing) of
+        loop ->
+            Seen#{loops => Loops#{At => true}};
 
-        false ->
-            case find_first_path(Obstacles, Seen, Size, NeedDir, At, At, #{}) of
-                {ok, _Looper} ->
-                    BlockerAt = step(Dir, At),
-                    % Can’t install an obstacle where the path has already crossed.
-                    case maps:get(BlockerAt, Seen, free) of
-                        free ->
-                            Seen#{loops => Loops#{step(Dir, At) => true}};
-
-                        _ ->
-                            Seen
-                    end;
-
-                not_found ->
-                    Seen
-            end
-    end.
-
-
-find_first_path(_Obstacles, _Seen, {W, H}, _Dir, {R, C}, _Origin, _Visited) when R < 1; C < 1; R > H; C > W ->
-    not_found;
-find_first_path(Obstacles, Seen, Size, Dir, At, Prev, Visited) ->
-    SeenAt = maps:get(At, Seen, not_found),
-    ObstacleAt = maps:get(At, Obstacles, not_found),
-    case {ObstacleAt, SeenAt, is_map_key(At, Visited)} of
-        {not_found, #{Dir := true}, _} ->
-            {ok, At};
-
-        {_, _, true} ->
-            {ok, At};
-
-        % Turn at an obstacle (could not have visited an obstacle).
-        {true, not_found, false} ->
-            NewDir = turn(Dir),
-            Reflect = turn(NewDir),
-            case step(Reflect, At) of
-                % Can’t reflect back at self.
-                Prev ->
-                    not_found;
-
-                Before ->
-                    find_first_path(Obstacles, Seen, Size, NewDir, step(NewDir, Before), Before, Visited#{At => true})
-            end;
-
-        {not_found, _, _} ->
-            find_first_path(Obstacles, Seen, Size, Dir, step(Dir, At), At, Visited#{At => true})
+        _ ->
+            Seen
     end.
 
 delta(From, From) -> 0;
@@ -285,6 +254,18 @@ p2_test_() -> [
         But this is also wrong :(
         """,
         ?_assertNotEqual(1339, aoc:test(day6, p2, "day6"))
+    },
+    {
+        """
+        Tried to reuse navigate(), which took a long time,
+        but still failed.
+
+        Probably at this point I need to create a state variable
+        and rethink the problem. Something is _right_ though about
+        checking Seen, Visited, and Obstacles. I just can’t think
+        it through properly at 1:40am.
+        """,
+        ?_assertNotEqual(1942, aoc:test(day6, p2, "day6"))
     }
 ].
 
