@@ -167,12 +167,19 @@ log(Seen, At, Dir, Probe) ->
     ).
 
 find_blocker(#{loops := Loops, size := Size, obstacles := Obstacles} = Seen, {Row, Col} = At, Dir) ->
-    case navigate(Size, Obstacles#{step(Dir, At) => true}, {Row, Col, Dir}, probing) of
-        loop ->
-            Seen#{loops => Loops#{At => true}};
+    BlockerAt = step(Dir, At),
+    case is_map_key(BlockerAt, Seen) of
+        true ->
+            Seen;
 
-        _ ->
-            Seen
+        false ->
+            case navigate(Size, Obstacles#{BlockerAt => true}, {Row, Col, Dir}, probing) of
+                loop ->
+                    Seen#{loops => Loops#{BlockerAt => true}};
+
+                _ ->
+                    Seen
+            end
     end.
 
 delta(From, From) -> 0;
