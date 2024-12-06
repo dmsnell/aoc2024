@@ -58,5 +58,15 @@ day5p2 (5180) took 7429.646 ms
  ├ avg = 0.643 ms
  ├ min = 0.467 ms
  └ total per = 0.743 ms
+
+day6p1 (5212) took 27563.436 ms
+ ├ avg = 2756.202 ms
+ ├ min = 2731.445 ms
+ └ total per = 2756.344 ms
+
+day6p2 (1767) took 27440.649 ms
+ ├ avg = 2743.917 ms
+ ├ min = 2705.109 ms
+ └ total per = 2744.065 ms
 ```
 [aoc2024]: (https://adventofcode.com/2024)

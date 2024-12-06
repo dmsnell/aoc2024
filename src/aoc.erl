@@ -17,6 +17,8 @@
     solve/2,
     solve/3,
     solve_all/0,
+    print/2,
+    print/3,
     print_all/0,
     print_all/1,
     test/3
@@ -108,31 +110,30 @@ parse_input(Day, Input) ->
         false -> Input
     end.
 
+print(Day, Part) ->
+    print(Day, Part, 10).
+
+print(Day, Part, N) ->
+    Results = sloppy_benchmark(Day, Part, N),
+    #{
+        answer    := A,
+        total     := {TV, TU},
+        measured  := {avg, {AV, AU}, min, {MV, MU}},
+        total_per := {TPV, TPU}
+    } = Results,
+    io:format("\e[34m~p~p\e[90m (\e[36m~p\e[90m) took \e[33m~p \e[2m~p\e[m\n", [Day, Part, A, TV, TU]),
+    io:format("\e[90m ├ avg = \e[33m~p \e[2m~p\e[m\n", [AV, AU]),
+    io:format("\e[90m ├ min = \e[33m~p \e[2m~p\e[m\n", [MV, MU]),
+    io:format("\e[90m └ total per = \e[33m~p \e[2m~p\e[m\n\n", [TPV, TPU]),
+    {Day, Part, Results}.
+
+
 print_all() ->
     print_all(10).
 
 print_all(N) ->
     Problems = lists:flatten([get_problems(Day) || Day <- get_days()]),
-    Solutions = lists:sort(fun problem_sort/2, [{Day, Part, sloppy_benchmark(Day, Part, N)} || {Day, Part} <- Problems]),
-    [
-        begin
-            io:format("\e[34m~p~p\e[90m (\e[36m~p\e[90m) took \e[33m~p \e[2m~p\e[m\n", [D, P, A, TV, TU]),
-            io:format("\e[90m ├ avg = \e[33m~p \e[2m~p\e[m\n", [AV, AU]),
-            io:format("\e[90m ├ min = \e[33m~p \e[2m~p\e[m\n", [MV, MU]),
-            io:format("\e[90m └ total per = \e[33m~p \e[2m~p\e[m\n\n", [TPV, TPU])
-        end
-        ||
-        {
-            D,
-            P,
-            #{
-                answer    := A,
-                total     := {TV, TU},
-                measured  := {avg, {AV, AU}, min, {MV, MU}},
-                total_per := {TPV, TPU}
-            }
-        } <- Solutions
-    ],
+    [sloppy_benchmark(Day, Part, N) || {Day, Part} <- lists:sort(fun problem_sort/2, Problems)],
     ok.
 
 test(Day, Part, InputName) ->
