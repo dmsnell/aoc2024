@@ -3,11 +3,11 @@
 Started at 10:00pm
 Part 1 solved at 11:00pm
     - first attempt, 313, was not successful (min/max copy mistake).
-Part 2 solved at…
+Part 2 solved at 2:00am
     - first attempt, 756, was not successful (pretty sure it would be wrong)
     - second, 714, was wrong (thought it was because I had previously added
       blockers where the path had already traversed, but this wasn’t the fix).
-Solved in…
+Solved in 4 hours.
 
 @author Dennis Snell <dmsnell@xkq.io>
 @copyright (C) 2024, Dennis Snell <dmsnell@xkq.io>
