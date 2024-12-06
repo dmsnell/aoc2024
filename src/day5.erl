@@ -11,6 +11,11 @@ Solved in 1h 15m.
    would be a more direct route, and then traverse the
    tree once built to get ordering.
 
+ - Replace the default `map()` implementation for the ordering
+   rules with a custom lookup three.
+
+     - This optimization led to a 2–2.5x speedup.
+
 #### Failed optimizations
 
  - After getting the problem working I tried to replace
@@ -39,12 +44,12 @@ Created : 04. Dec 2024 10:42 PM
 -export([config/0]).
 
 config() -> #{
-    p1 => {fun p1_submitted/1, groups_and_lines},
-    p2 => {fun p2_submitted/1, groups_and_lines}
+    p1 => {fun p1_tree_lookup/1, groups_and_lines},
+    p2 => {fun p2_tree_lookup/1, groups_and_lines}
 }.
 
 
-p1_submitted([OrderingRules, Updates]) ->
+p1_tree_lookup([OrderingRules, Updates]) ->
     Orderings = parse_ordering_rules(OrderingRules),
     lists:foldl(
         fun
@@ -53,15 +58,18 @@ p1_submitted([OrderingRules, Updates]) ->
 
             (Update, Sum) ->
                 NumGroups = binary:split(Update, <<",">>, [global, trim]),
-                Pages = [begin {{N, _}, <<>>} = day1:int(PageNum, 0, 0), N end || PageNum <- NumGroups],
+                Pages = [{H - $0, L - $0} || <<H, L>> <- NumGroups],
                 case is_right_order(Orderings, Pages) of
-                    true  -> Sum + list_mid(Pages);
+                    true  -> Sum + to_num(list_mid(Pages));
                     false -> Sum
                 end
         end,
         0,
         Updates
     ).
+
+
+to_num({H, L}) -> 10 * H + L.
 
 
 list_mid(List) ->
@@ -91,36 +99,70 @@ is_right_order(Orderings, [Page | Pages], Priors) ->
 can_follow(_Orderings, _Page, []) ->
     true;
 can_follow(Orderings, Page, [Prior | Priors]) ->
-    case maps:get(Prior, Orderings, not_found) of
-        not_found ->
-            can_follow(Orderings, Page, Priors);
-
-        Rejects when is_map(Rejects) ->
-            case maps:is_key(Page, Rejects) of
-                true  -> false;
-                false -> can_follow(Orderings, Page, Priors)
-            end
+    case rl_get(Orderings, Page, Prior) of
+        safe   -> can_follow(Orderings, Page, Priors);
+        reject -> false
     end.
 
 
+rl_leaf_new() ->
+    {safe, safe, safe, safe, safe, safe, safe, safe, safe, safe}.
+
+rl_new() ->
+    {rl_leaf_new(), rl_leaf_new(), rl_leaf_new(), rl_leaf_new(), rl_leaf_new(), rl_leaf_new(), rl_leaf_new(), rl_leaf_new(), rl_leaf_new(), rl_leaf_new()}.
+
+rl_add(RL, {H, L} = _Page, {PH, PL} = _Prior) ->
+    PageHigh = element(H + 1, RL),
+    PageLow  = case element(L + 1, PageHigh) of
+        safe  -> rl_new();
+        Level -> Level
+    end,
+    PriorHigh = case element(PH + 1, PageLow) of
+        safe -> rl_leaf_new();
+        Leaf -> Leaf
+    end,
+    setelement(H + 1, RL, setelement(
+        L + 1, PageHigh, setelement(
+            PH + 1, PageLow, setelement(
+                PL + 1, PriorHigh, reject
+            )
+        )
+    ) ).
+
+rl_has(RL, {H, L} = _Page) ->
+    case element(L + 1, element(H + 1, RL)) of
+        safe -> false;
+        _    -> true
+    end.
+
+rl_get(RL, {H, L} = _Page, {PH, PL} = _Prior) ->
+    PageHigh = element(H + 1, RL),
+    PageLow  = case element(L + 1, PageHigh) of
+        safe  -> rl_new();
+        Level -> Level
+    end,
+    PriorHigh = case element(PH + 1, PageLow) of
+        safe -> rl_leaf_new();
+        Leaf -> Leaf
+    end,
+    element(PL + 1, PriorHigh).
+
+
 parse_ordering_rules(Lines) ->
-    parse_ordering_rules(Lines, #{}).
+    parse_ordering_rules(Lines, rl_new()).
 
 parse_ordering_rules([], Orderings) ->
     Orderings;
 
 parse_ordering_rules([Line | Lines], Orderings) ->
-    {{Earlier, _}, <<"|", Rest/binary>>} = day1:int(Line, 0, 0),
-    {{Later, _}, <<>>} = day1:int(Rest, 0, 0),
-    NextOrderings = maps:update_with(
-        Later,
-        fun (Priors) -> maps:put(Earlier, true, Priors) end,
-        #{Earlier => true},
-        Orderings
-    ),
+    {Prior, Page} = parse_ordering_line(Line),
+    NextOrderings = rl_add(Orderings, Page, Prior),
     parse_ordering_rules(Lines, NextOrderings).
 
-p2_submitted([OrderingRules, Updates]) ->
+parse_ordering_line(<<PH, PL, "|", H, L>>) ->
+    {{H - $0, L - $0}, {PH - $0, PL - $0}}.
+
+p2_tree_lookup([OrderingRules, Updates]) ->
     Orderings = parse_ordering_rules(OrderingRules),
     lists:foldl(
         fun
@@ -129,10 +171,12 @@ p2_submitted([OrderingRules, Updates]) ->
 
             (Update, Sum) ->
                 NumGroups = binary:split(Update, <<",">>, [global, trim]),
-                Pages = [begin {{N, _}, <<>>} = day1:int(PageNum, 0, 0), N end || PageNum <- NumGroups],
+                Pages = [{H - $0, L - $0} || <<H, L>> <- NumGroups],
                 case is_right_order(Orderings, Pages) of
                     true  -> Sum;
-                    false -> Sum + list_mid(in_order(Orderings, Pages))
+                    false ->
+                        {H, L} = list_mid(in_order(Orderings, Pages)),
+                        Sum + H * 10 + L
                 end
         end,
         0,
@@ -153,23 +197,19 @@ in_order(Orderings, [Page | Pages], PrevOrdered) ->
 insert(_Orderings, Page, []) ->
     [Page];
 
-
 insert(Orderings, Page, Ordered) ->
-    case maps:get(Page, Orderings, not_found) of
-        not_found ->
-            Ordered ++ [Page];
-
-        Rejects when is_map(Rejects) ->
-            insert(Orderings, Page, Rejects, [], Ordered)
+    case rl_has(Orderings, Page) of
+        false -> Ordered ++ [Page];
+        true  -> insert(Orderings, Page, [], Ordered)
     end.
 
-insert(_Orderings, Page, _Rejects, Prefix, []) ->
+insert(_Orderings, Page, Prefix, []) ->
     Prefix ++ [Page];
 
-insert(Orderings, Page, Rejects, Prefix, [Next | Tail]) ->
-    case maps:get(Next, Rejects, not_found) of
-        not_found -> insert(Orderings, Page, Rejects, Prefix ++ [Next], Tail);
-        true      -> Prefix ++ [Page, Next | Tail]
+insert(Orderings, Page, Prefix, [Next | Tail]) ->
+    case rl_get(Orderings, Page, Next) of
+        safe   -> insert(Orderings, Page, Prefix ++ [Next], Tail);
+        reject -> Prefix ++ [Page, Next | Tail]
     end.
 
 
