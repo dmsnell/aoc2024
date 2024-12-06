@@ -59,10 +59,13 @@ day5p2 (5180) took 7429.646 ms
  ├ min = 0.467 ms
  └ total per = 0.743 ms
 
-day6p1 (5212) took 27563.436 ms
- ├ avg = 2756.202 ms
- ├ min = 2731.445 ms
- └ total per = 2756.344 ms
+% Had to check out an earlier version of
+% part 1 for this, as I clobbered the
+% submitted solution while building part 2.
+day6p1 (5212) took 3141.822 ms
+ ├ avg = 3.072 ms
+ ├ min = 2.468 ms
+ └ total per = 3.142 ms
 
 day6p2 (1767) took 27440.649 ms
  ├ avg = 2743.917 ms
