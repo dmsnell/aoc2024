@@ -39,9 +39,9 @@ test(TestValue, Total, _Buffer) when Total > TestValue ->
 
 test(TestValue, Total, Buffer) ->
     {{Next, _}, Rest} = day1:int(Buffer, 0, 0),
-    case test(TestValue, Total + Next, Rest) of
+    case test(TestValue, Total * Next, Rest) of
         0 ->
-            test(TestValue, Total * Next, Rest);
+            test(TestValue, Total + Next, Rest);
 
         N ->
             N
