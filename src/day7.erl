@@ -16,7 +16,7 @@ Created : 06. Dec 2024 9:58 PM
 
 config() -> #{
     p1 => {fun p1_submitted/1, lines},
-    p2 => {fun p2_submitted/1, lines}
+    p2 => {fun p2_optimized/1, lines}
 }.
 
 p1_submitted(Lines) ->
@@ -48,7 +48,13 @@ test(TestValue, Total, Buffer) ->
     end.
 
 
-p2_submitted(Lines) ->
+-doc """
+Optimized original solution by manually concatenating numbers
+instead of string-formatting and then parsing them.
+
+Props to @mcsf for the suggestion.
+""".
+p2_optimized(Lines) ->
     lists:foldl(fun (Line, Sum) -> Sum + line2(Line) end, 0, Lines).
 
 line2(Line) ->
@@ -67,13 +73,11 @@ test2(TestValue, Total, _Buffer) when Total > TestValue ->
 
 test2(TestValue, Total, Buffer) ->
     {{Next, _}, Rest} = day1:int(Buffer, 0, 0),
-    case test2(TestValue, Total + Next, Rest) of
+    case test2(TestValue, Total * Next, Rest) of
         0 ->
-            case test2(TestValue, Total * Next, Rest) of
+            case test2(TestValue, concat(Total, Next), Rest) of
                 0 ->
-                    % These are all ASCII, so unicode:characters_to_binary isn’t necessary.
-                    Joined = list_to_binary(io_lib:format("~p~p", [Total, Next])),
-                    test2(TestValue, binary_to_integer(Joined), Rest);
+                    test2(TestValue, Total + Next, Rest);
 
                 N ->
                     N
@@ -84,6 +88,11 @@ test2(TestValue, Total, Buffer) ->
     end.
 
 
+concat(A, B) ->
+    PowersOfTen = floor(math:log10(B)),
+    floor(A * math:pow(10, PowersOfTen + 1) + B).
+
+
 -ifdef(EUNIT).
 -include_lib("eunit/include/eunit.hrl").
 
@@ -92,5 +101,8 @@ p1_test() ->
 
 p2_test() ->
     ?assertEqual(11387, aoc:test(day7, p2, "day7_a")).
+
+p2_answer_test() ->
+    ?assertEqual(104824810233437, aoc:test(day7, p2, "day7")).
 
 -endif.
