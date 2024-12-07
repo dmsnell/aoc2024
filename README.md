@@ -71,5 +71,15 @@ day6p2 (1767) took 27440.649 ms
  ├ avg = 2743.917 ms
  ├ min = 2705.109 ms
  └ total per = 2744.065 ms
+
+day7p1 (850435817339) took 6307.407 ms
+ ├ avg = 6.187 ms
+ ├ min = 5.367 ms
+ └ total per = 6.307 ms
+
+day7p2 (104824810233437) took 2154852.653 ms
+ ├ avg = 2154.651 ms
+ ├ min = 1835.899 ms
+ └ total per = 2154.853 ms
 ```
 [aoc2024]: (https://adventofcode.com/2024)

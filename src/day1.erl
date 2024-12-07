@@ -11,7 +11,7 @@
 -behavior(aoc).
 
 -export([config/0]).
--export([int/3]).
+-export([int/3, trim/1]).
 
 config() -> #{
     p1 => {fun p1/1, lines},

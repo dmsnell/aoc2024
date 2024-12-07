@@ -215,65 +215,66 @@ p1_test() ->
     ?assertEqual(41, aoc:test(day6, p1, "day6_a")).
 
 p2_test_() -> [
-    {"Example", ?_assertEqual(6, aoc:test(day6, p2, "day6_a"))},
-    {
-        """
-        Blockers not only appear when crossing a path, but also when
-        passing a point that if turned, would re-join a prior path.
-        """,
-        ?_assertNotEqual(756, aoc:test(day6, p2, "day6"))
-    },
-    {
-        """
-        Can’t place blockers on a spot already traversed, else the
-        guard wouldn’t be able to arrive at the current spot.
-        """,
-        ?_assertNotEqual(714, aoc:test(day6, p2, "day6"))
-    },
-    {
-        """
-        If finding a path and an obstacle is in the way, one needs
-        to turn before the obstacle and recurse, continue looking
-        for a path that would connect to a loop.
-        """,
-        ?_assertNotEqual(428, aoc:test(day6, p2, "day6"))
-    },
-    {
-        """
-        Not sure why this is wrong.
-        """,
-        ?_assertNotEqual(1338, aoc:test(day6, p2, "day6"))
-    },
-    {
-        """
-        Will this be the one?
-        """,
-        ?_assertNotEqual(1500, aoc:test(day6, p2, "day6"))
-    },
-    {
-        """
-        Didn’t get the visitation check right, because I was
-        checking if the loop-finder had already visited obstacles,
-        which isn’t possible; it should have been checking that
-        it wasn’t re-visiting locations that didn’t also have
-        a previously-seen traversal.
-
-        But this is also wrong :(
-        """,
-        ?_assertNotEqual(1339, aoc:test(day6, p2, "day6"))
-    },
-    {
-        """
-        Tried to reuse navigate(), which took a long time,
-        but still failed.
-
-        Probably at this point I need to create a state variable
-        and rethink the problem. Something is _right_ though about
-        checking Seen, Visited, and Obstacles. I just can’t think
-        it through properly at 1:40am.
-        """,
-        ?_assertNotEqual(1942, aoc:test(day6, p2, "day6"))
-    }
+    {"Example", ?_assertEqual(6, aoc:test(day6, p2, "day6_a"))}
+%%    Commented out because these are slow.
+%%    {
+%%        """
+%%        Blockers not only appear when crossing a path, but also when
+%%        passing a point that if turned, would re-join a prior path.
+%%        """,
+%%        ?_assertNotEqual(756, aoc:test(day6, p2, "day6"))
+%%    },
+%%    {
+%%        """
+%%        Can’t place blockers on a spot already traversed, else the
+%%        guard wouldn’t be able to arrive at the current spot.
+%%        """,
+%%        ?_assertNotEqual(714, aoc:test(day6, p2, "day6"))
+%%    },
+%%    {
+%%        """
+%%        If finding a path and an obstacle is in the way, one needs
+%%        to turn before the obstacle and recurse, continue looking
+%%        for a path that would connect to a loop.
+%%        """,
+%%        ?_assertNotEqual(428, aoc:test(day6, p2, "day6"))
+%%    },
+%%    {
+%%        """
+%%        Not sure why this is wrong.
+%%        """,
+%%        ?_assertNotEqual(1338, aoc:test(day6, p2, "day6"))
+%%    },
+%%    {
+%%        """
+%%        Will this be the one?
+%%        """,
+%%        ?_assertNotEqual(1500, aoc:test(day6, p2, "day6"))
+%%    },
+%%    {
+%%        """
+%%        Didn’t get the visitation check right, because I was
+%%        checking if the loop-finder had already visited obstacles,
+%%        which isn’t possible; it should have been checking that
+%%        it wasn’t re-visiting locations that didn’t also have
+%%        a previously-seen traversal.
+%%
+%%        But this is also wrong :(
+%%        """,
+%%        ?_assertNotEqual(1339, aoc:test(day6, p2, "day6"))
+%%    },
+%%    {
+%%        """
+%%        Tried to reuse navigate(), which took a long time,
+%%        but still failed.
+%%
+%%        Probably at this point I need to create a state variable
+%%        and rethink the problem. Something is _right_ though about
+%%        checking Seen, Visited, and Obstacles. I just can’t think
+%%        it through properly at 1:40am.
+%%        """,
+%%        ?_assertNotEqual(1942, aoc:test(day6, p2, "day6"))
+%%    }
 ].
 
 -endif.
