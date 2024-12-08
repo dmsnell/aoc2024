@@ -18,6 +18,8 @@ Created : 05. Dec 2024 8:21 PM
 %% API
 -export([config/0]).
 
+-export([step/2]).
+
 config() -> #{
     p1 => {fun p1_submitted/1, lines},
     p2 => {fun p2_submitted/1, lines}

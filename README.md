@@ -81,5 +81,15 @@ day7p2 (104824810233437) took 25566.255 ms
  ├ avg = 255.502 ms
  ├ min = 251.329 ms
  └ total per = 255.663 ms
+
+day8p1 (289) took 1262.162 ms
+ ├ avg = 0.088 ms
+ ├ min = 0.061 ms
+ └ total per = 0.126 ms
+
+day8p2 (1030) took 5358.681 ms
+ ├ avg = 0.498 ms
+ ├ min = 0.401 ms
+ └ total per = 0.536 ms
 ```
 [aoc2024]: (https://adventofcode.com/2024)
