@@ -55,10 +55,10 @@ As submitted.
 After all optimizations.
 
 ```
-#{total => {1878.085,ms},
+#{total => {18036.906,ms},
   answer => 6385338159127,
-  measured => {avg,{1.842,ms},min,{1.119,ms}},
-  total_per => {1.878,ms}}
+  measured => {avg,{1.766,ms},min,{0.806,ms}},
+  total_per => {1.804,ms}}
 ```
 """.
 p1_submitted(Buffer) ->
@@ -146,10 +146,10 @@ Submitted.
 After all optimizations.
 
 ```
-#{total => {25223.418,ms},
+#{total => {17931.41,ms},
   answer => 6415163624282,
-  measured => {avg,{840.655,ms},min,{826.583,ms}},
-  total_per => {840.781,ms}}
+  measured => {avg,{597.596,ms},min,{579.512,ms}},
+  total_per => {597.714,ms}}
 ```
 
 #### Optimizations
@@ -161,6 +161,7 @@ After all optimizations.
  - Fixed a bug where the free list was getting duplicates.
  - Optimized insert_sorted to skip building intermediate lists.
  - Optimized first_free_span to skip building intermediate lists.
+ - Optimized merge and its use to avoid iterating where unnecessary.
 """.
 p2_submitted(Buffer) ->
     InitialFS = read_table(Buffer),
@@ -225,7 +226,7 @@ compact_contiguous(#fs{} = FS, At, Blocks) ->
 
 
 insert_sorted(Free, Span) ->
-    merge(insert_sorted(Free, Span, [])).
+    insert_sorted(Free, Span, []).
 
 insert_sorted([], Span, Skipped) ->
     lists:reverse([Span | Skipped]);
@@ -239,7 +240,7 @@ insert_sorted([{At, _} = _Next | _] = Free, {SpanAt, Length} = Span, Skipped) wh
     lists:reverse(Skipped) ++ [Span | Free];
 
 insert_sorted([Next | Free], Span, Skipped) ->
-    lists:reverse(Skipped) ++ [Span, Next | Free].
+    lists:reverse(Skipped) ++ merge([Span, Next | Free]).
 
 
 merge(Spans) ->
@@ -252,7 +253,10 @@ merge([Next], Skipped) ->
     merge([], [Next | Skipped]);
 
 % These are disjoint, continue.
-merge([{At, Length} = Next, {NextAt, _} = After | Spans], Skipped) when At + Length =< NextAt ->
+merge([{At, Length} = Next, {NextAt, _} = After | Spans], Skipped) when At + Length < NextAt ->
+    lists:reverse(Skipped) ++ [Next, After | Spans];
+
+merge([{At, Length} = Next, {NextAt, _} = After | Spans], Skipped) when At + Length == NextAt ->
     merge([After | Spans], [Next | Skipped]);
 
 merge([{At, Length}, {NextAt, NextLength} | Spans], Skipped) when At =< NextAt, At + Length >= NextAt ->
