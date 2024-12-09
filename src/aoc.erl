@@ -50,7 +50,7 @@ sloppy_benchmark(Day, Part) ->
     sloppy_benchmark(Day, Part, 200).
 
 sloppy_benchmark(Day, Part, Iterations) ->
-    WarmupIterations = 25,
+    WarmupIterations = min(Iterations, 25),
     {Day, Part, Answer, _Time} = solve(Day, Part),
     _Warmup = lists:foreach(
         fun (_) -> solve(Day, Part) end,
