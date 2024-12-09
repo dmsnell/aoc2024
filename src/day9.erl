@@ -201,6 +201,24 @@ insert_sorted(List, [At | _] = Inserted) ->
 insert_sorted([], _At, Inserted, Combined) ->
     lists:reverse(Combined) ++ Inserted;
 
+insert_sorted([A, B, C, D | List], At, Inserted, Combined) ->
+    if
+        D < At ->
+            insert_sorted(List, At, Inserted, [D, C, B, A | Combined]);
+
+        C < At ->
+            insert_sorted(List, At, Inserted, [C, B, A | Combined]);
+
+        B < At ->
+            insert_sorted(List, At, Inserted, [B, A | Combined]);
+
+        A < At ->
+            insert_sorted(List, At, Inserted, [A | Combined]);
+
+        true ->
+            lists:reverse(Combined) ++ Inserted ++ List
+    end;
+
 insert_sorted([A | List], At, Inserted, Combined) when A < At ->
     insert_sorted(List, At, Inserted, [A | Combined]);
 
