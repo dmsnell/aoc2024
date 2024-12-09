@@ -130,6 +130,7 @@ hash([ID | Blocks], Position, Hash) ->
    be sorted, because we can maintain the sorting constraints by
    construction when building the lists.
  - Fixed a bug where the free list was getting duplicates.
+ - Optimized insert_sorted to skip some intermediate lists.
 """.
 p2_submitted(Buffer) ->
     InitialFS = read_table(Buffer),
@@ -193,23 +194,17 @@ compact_contiguous(#fs{} = FS, At, Blocks) ->
     compact_contiguous(FS, At + 1, Blocks).
 
 
-insert_sorted(List, Inserted) ->
-    insert_sorted(List, Inserted, []).
+insert_sorted(List, [At | _] = Inserted) ->
+    insert_sorted(List, At, Inserted, []).
 
-insert_sorted([], Inserted, Combined) ->
+insert_sorted([], _At, Inserted, Combined) ->
     lists:reverse(Combined) ++ Inserted;
 
-insert_sorted(List, [], Combined) ->
-    lists:reverse(Combined) ++ List;
+insert_sorted([A | List], At, Inserted, Combined) when A < At ->
+    insert_sorted(List, At, Inserted, [A | Combined]);
 
-insert_sorted([A | List], [B | _] = Inserted, Combined) when A < B ->
-    insert_sorted(List, Inserted, [A | Combined]);
-
-insert_sorted([A | _] = List, [B | Inserted], Combined) when A > B ->
-    insert_sorted(List, Inserted, [B | Combined]);
-
-insert_sorted([A | List], [B | Inserted], Combined) when A == B ->
-    insert_sorted(List, Inserted, [B | Combined]).
+insert_sorted([A | _] = List, At, Inserted, Combined) when A > At ->
+    lists:reverse(Combined) ++ Inserted ++ List.
 
 
 first_free_span(_Before, [], _Length) ->
