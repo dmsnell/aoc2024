@@ -130,7 +130,8 @@ hash([ID | Blocks], Position, Hash) ->
    be sorted, because we can maintain the sorting constraints by
    construction when building the lists.
  - Fixed a bug where the free list was getting duplicates.
- - Optimized insert_sorted to skip some intermediate lists.
+ - Optimized insert_sorted to skip building intermediate lists.
+ - Optimized first_free_span to skip building intermediate lists.
 """.
 p2_submitted(Buffer) ->
     InitialFS = read_table(Buffer),
@@ -207,29 +208,27 @@ insert_sorted([A | _] = List, At, Inserted, Combined) when A > At ->
     lists:reverse(Combined) ++ Inserted ++ List.
 
 
-first_free_span(_Before, [], _Length) ->
+first_free_span(Before, [Next | _Free] = _FreeList, _Length) when Next > Before ->
     no_space;
 
-first_free_span(Before, [Next | _Free], _Length) when Next >= Before ->
+first_free_span(Before, [Next | Free] = FreeList, Length) ->
+    first_free_span(Before, FreeList, Free, Length, Next, Next, 1, 1).
+
+first_free_span(_Before, _FreeList, [], _Length, _Start, _Prev, _L, _UsedAt) ->
     no_space;
 
-first_free_span(Before, [Next | Free], Length) ->
-    first_free_span(Before, Free, Length, Next, Next, 1, [Next], []).
-
-first_free_span(_Before, [], _Length, _Start, _Prev, _L, _Used, _Skipped) ->
-    no_space;
-
-first_free_span(_Before, Free, Length, Start, _Prev, Length, _Used, Skipped) ->
+first_free_span(_Before, FreeList, Free, Length, Start, _Prev, Length, UsedAt) ->
+    Skipped = lists:sublist(FreeList, UsedAt - 1),
     {free, Start, Skipped ++ Free};
 
-first_free_span(Before, [Next | _Free], _Length, _Start, _Prev, _L, _Used, _Skipped) when Next >= Before ->
+first_free_span(Before, _FreeList, [Next | _Free], _Length, _Start, _Prev, _L, _UsedAt) when Next >= Before ->
     no_space;
 
-first_free_span(Before, [Next | Free], Length, Start, Prev, L, Used, Skipped) when Next == Prev + 1 ->
-    first_free_span(Before, Free, Length, Start, Next, L + 1, [Next | Used], Skipped);
+first_free_span(Before, FreeList, [Next | Free], Length, Start, Prev, L, UsedAt) when Next == Prev + 1 ->
+    first_free_span(Before, FreeList, Free, Length, Start, Next, L + 1, UsedAt);
 
-first_free_span(Before, [Next | Free], Length, _Start, _Prev, _L, Used, Skipped) ->
-    first_free_span(Before, Free, Length, Next, Next, 1, [Next], Skipped ++ lists:reverse(Used)).
+first_free_span(Before, FreeList, [Next | Free], Length, _Start, _Prev, L, UsedAt) ->
+    first_free_span(Before, FreeList, Free, Length, Next, Next, 1, UsedAt + L).
 
 
 remove_file(Files, ID) ->
