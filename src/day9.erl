@@ -13,6 +13,7 @@ Solved in 3h 4m.
    This might save expensive list operations.
  - Combine FS compaction and hash building to eliminate the intermediate list.
  - Could store the lists as maps instead of lists to avoid copy costs.
+ - Storing the free list as spans instead of individual cells saved list ops.
 
 @author Dennis Snell <dmsnell@xkq.io>
 @copyright (C) 2024, Dennis Snell <dmsnell@xkq.io>
@@ -42,11 +43,22 @@ config() -> #{
 -doc """
 #### Benchmark
 
+As submitted.
+
 ```
 #{total => {4631.92,ms},
   answer => 6385338159127,
   measured => {avg,{926.192,ms},min,{921.086,ms}},
   total_per => {926.384,ms}}
+```
+
+After all optimizations.
+
+```
+#{total => {1878.085,ms},
+  answer => 6385338159127,
+  measured => {avg,{1.842,ms},min,{1.119,ms}},
+  total_per => {1.878,ms}}
 ```
 """.
 p1_submitted(Buffer) ->
@@ -58,8 +70,8 @@ p1_submitted(Buffer) ->
 read_table(Buffer) ->
     read_table(#fs{}, next_file, Buffer, 0, 0).
 
-read_table(#fs{files = Files} = FS, _State, <<>>, N, _ID) ->
-    FS#fs{size = N, files = lists:reverse(Files), rev_files = Files};
+read_table(#fs{free = Free, files = Files} = FS, _State, <<>>, N, _ID) ->
+    FS#fs{size = N, free = lists:reverse(Free), files = lists:reverse(Files), rev_files = Files};
 
 read_table(#fs{} = FS, State, <<"\n">>, N, ID) ->
     read_table(FS, State, <<>>, N, ID);
@@ -70,7 +82,13 @@ read_table(#fs{files = Files} = FS, next_file, <<D, Buffer/binary>>, N, ID) when
 
 read_table(#fs{free = Free} = FS, next_free, <<D, Buffer/binary>>, N, ID) when D >= $0, D =< $9 ->
     Stride = D - $0,
-    read_table(FS#fs{free = Free ++ lists:seq(N, N + Stride - 1)}, next_file, Buffer, N + Stride, ID).
+    case Stride of
+        0 ->
+            read_table(FS#fs{free = Free}, next_file, Buffer, N + Stride, ID);
+
+        _ ->
+            read_table(FS#fs{free = [{N, Stride} | Free]}, next_file, Buffer, N + Stride, ID)
+    end.
 
 
 compact(#fs{} = FS) ->
@@ -92,7 +110,7 @@ compact(#fs{
 } = FS, At, Blocks) ->
     % There are NextAt - At blocks free; start filling in the from the last file.
     ToUse = min(LastSize, NextAt - At),
-    {_UsedFree, RemainingFree} = lists:splitwith(fun (V) -> V < NextAt end, Free),
+    {free, At, RemainingFree} = first_free_span(NextAt, Free, ToUse),
     RemainingFiles = if
         ToUse == LastSize -> RevFiles;
         true              -> [{ID, {LastAt, LastSize - ToUse}} | RevFiles]
@@ -116,11 +134,22 @@ hash([ID | Blocks], Position, Hash) ->
 -doc """
 #### Benchmark
 
+Submitted.
+
 ```
 #{total => {30979.678,ms},
   answer => 6415163624282,
   measured => {avg,{6195.767,ms},min,{6038.112,ms}},
   total_per => {6195.936,ms}}
+```
+
+After all optimizations.
+
+```
+#{total => {25223.418,ms},
+  answer => 6415163624282,
+  measured => {avg,{840.655,ms},min,{826.583,ms}},
+  total_per => {840.781,ms}}
 ```
 
 #### Optimizations
@@ -182,7 +211,7 @@ compact_contiguous(#fs{
             RemainingFiles = remove_file(Files, ID),
             compact_contiguous(
                 FS#fs{
-                    free = insert_sorted(RemainingFree, lists:seq(RevAt, RevAt + Length - 1)),
+                    free = insert_sorted(RemainingFree, {RevAt, Length}),
                     files = RemainingFiles,
                     rev_files = RevFiles
                 },
@@ -195,58 +224,67 @@ compact_contiguous(#fs{} = FS, At, Blocks) ->
     compact_contiguous(FS, At + 1, Blocks).
 
 
-insert_sorted(List, [At | _] = Inserted) ->
-    insert_sorted(List, At, Inserted, []).
+insert_sorted(Free, Span) ->
+    merge(insert_sorted(Free, Span, [])).
 
-insert_sorted([], _At, Inserted, Combined) ->
-    lists:reverse(Combined) ++ Inserted;
+insert_sorted([], Span, Skipped) ->
+    lists:reverse([Span | Skipped]);
 
-insert_sorted([A, B, C, D | List], At, Inserted, Combined) ->
+% Span is fully after the next free segment; skip the next free segment.
+insert_sorted([{At, Length} = Next | Free], {SpanAt, _} = Span, Skipped) when SpanAt > At + Length ->
+    insert_sorted(Free, Span, [Next | Skipped]);
+
+% Span is fully before the next free segment; insert it and return.
+insert_sorted([{At, _} = _Next | _] = Free, {SpanAt, Length} = Span, Skipped) when At > SpanAt + Length ->
+    lists:reverse(Skipped) ++ [Span | Free];
+
+insert_sorted([Next | Free], Span, Skipped) ->
+    lists:reverse(Skipped) ++ [Span, Next | Free].
+
+
+merge(Spans) ->
+    merge(Spans, []).
+
+merge([], Skipped) ->
+    lists:reverse(Skipped);
+
+merge([Next], Skipped) ->
+    merge([], [Next | Skipped]);
+
+% These are disjoint, continue.
+merge([{At, Length} = Next, {NextAt, _} = After | Spans], Skipped) when At + Length =< NextAt ->
+    merge([After | Spans], [Next | Skipped]);
+
+merge([{At, Length}, {NextAt, NextLength} | Spans], Skipped) when At =< NextAt, At + Length >= NextAt ->
+    merge([{At, NextAt + NextLength - At} | Spans], Skipped);
+
+merge([{At, Length}, {NextAt, NextLength} | Spans], Skipped) when At + Length >= NextAt ->
+    merge([{At, NextAt + NextLength - At} | Spans], Skipped).
+
+
+first_free_span(Before, [{Next, _Stride} | _Free] = _FreeList, _Length) when Next > Before ->
+    no_space;
+
+first_free_span(Before, Free, Length) ->
+    first_free_span(Before, Free, Length, []).
+
+first_free_span(_Before, [], _Length, _Skipped) ->
+    no_space;
+
+first_free_span(_Before, [{At, Stride} = _Span | Free], Length, Skipped) when Stride >= Length ->
     if
-        D < At ->
-            insert_sorted(List, At, Inserted, [D, C, B, A | Combined]);
-
-        C < At ->
-            insert_sorted(List, At, Inserted, [C, B, A | Combined]);
-
-        B < At ->
-            insert_sorted(List, At, Inserted, [B, A | Combined]);
-
-        A < At ->
-            insert_sorted(List, At, Inserted, [A | Combined]);
+        Stride == Length ->
+            {free, At, lists:reverse(Skipped) ++ Free};
 
         true ->
-            lists:reverse(Combined) ++ Inserted ++ List
+            {free, At, lists:reverse(Skipped) ++ [{At + Length, Stride - Length} | Free]}
     end;
 
-insert_sorted([A | List], At, Inserted, Combined) when A < At ->
-    insert_sorted(List, At, Inserted, [A | Combined]);
-
-insert_sorted([A | _] = List, At, Inserted, Combined) when A > At ->
-    lists:reverse(Combined) ++ Inserted ++ List.
-
-
-first_free_span(Before, [Next | _Free] = _FreeList, _Length) when Next > Before ->
+first_free_span(Before, [{At, _Stride} = _Next | _Free], _Length, _Skipped) when At >= Before ->
     no_space;
 
-first_free_span(Before, [Next | Free] = FreeList, Length) ->
-    first_free_span(Before, FreeList, Free, Length, Next, Next, 1, 1).
-
-first_free_span(_Before, _FreeList, [], _Length, _Start, _Prev, _L, _UsedAt) ->
-    no_space;
-
-first_free_span(_Before, FreeList, Free, Length, Start, _Prev, Length, UsedAt) ->
-    Skipped = lists:sublist(FreeList, UsedAt - 1),
-    {free, Start, Skipped ++ Free};
-
-first_free_span(Before, _FreeList, [Next | _Free], _Length, _Start, _Prev, _L, _UsedAt) when Next >= Before ->
-    no_space;
-
-first_free_span(Before, FreeList, [Next | Free], Length, Start, Prev, L, UsedAt) when Next == Prev + 1 ->
-    first_free_span(Before, FreeList, Free, Length, Start, Next, L + 1, UsedAt);
-
-first_free_span(Before, FreeList, [Next | Free], Length, _Start, _Prev, L, UsedAt) ->
-    first_free_span(Before, FreeList, Free, Length, Next, Next, 1, UsedAt + L).
+first_free_span(Before, [Next | Free], Length, Skipped) ->
+    first_free_span(Before, Free, Length, [Next | Skipped]).
 
 
 remove_file(Files, ID) ->
