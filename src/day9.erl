@@ -146,10 +146,10 @@ Submitted.
 After all optimizations.
 
 ```
-#{total => {17931.41,ms},
+#{total => {9669.375,ms},
   answer => 6415163624282,
-  measured => {avg,{597.596,ms},min,{579.512,ms}},
-  total_per => {597.714,ms}}
+  measured => {avg,{193.278,ms},min,{174.629,ms}},
+  total_per => {193.388,ms}}}
 ```
 
 #### Optimizations
@@ -162,6 +162,8 @@ After all optimizations.
  - Optimized insert_sorted to skip building intermediate lists.
  - Optimized first_free_span to skip building intermediate lists.
  - Optimized merge and its use to avoid iterating where unnecessary.
+ - Tracked “skipped” files which have already been copied to the
+   output blocks in a map to avoid removing them from the list queues.
 """.
 p2_submitted(Buffer) ->
     InitialFS = read_table(Buffer),
@@ -170,9 +172,9 @@ p2_submitted(Buffer) ->
 
 
 compact_contiguous(#fs{} = FS) ->
-    compact_contiguous(FS, 0, []).
+    compact_contiguous(FS, #{}, 0, []).
 
-compact_contiguous(#fs{files = []}, _At, Blocks) ->
+compact_contiguous(#fs{files = []}, _ToSkip, _At, Blocks) ->
     Sorted = lists:sort(fun ({A, _}, {B, _}) -> A =< B end, lists:flatten(Blocks)),
     {_EndAt, Chunks} = lists:foldl(
         fun ({FileAt, FileBlocks}, {At, FS}) ->
@@ -185,44 +187,43 @@ compact_contiguous(#fs{files = []}, _At, Blocks) ->
     ),
     lists:flatten(Chunks);
 
-compact_contiguous(#fs{
-    files = [{ID, {At, Size}} | Files],
-    rev_files = RevFiles
-} = FS, At, Blocks) ->
+compact_contiguous(#fs{files = [{ID, _} | Files]} = FS, ToSkip, At, Blocks) when is_map_key(ID, ToSkip) ->
+    compact_contiguous(FS#fs{files = Files}, ToSkip, At, Blocks);
+
+compact_contiguous(#fs{files = [{ID, {At, Size}} | Files]} = FS, ToSkip, At, Blocks) ->
     compact_contiguous(
-        FS#fs{
-            files = Files,
-            rev_files = remove_file(RevFiles, ID)
-        },
+        FS#fs{files = Files},
+        ToSkip#{ID => true},
         At + Size,
         [Blocks | [{At, lists:duplicate(Size, ID)}]]
     );
 
+compact_contiguous(#fs{rev_files = [{ID, _} | RevFiles]} = FS, ToSkip, At, Blocks) when is_map_key(ID, ToSkip) ->
+    compact_contiguous(FS#fs{rev_files = RevFiles}, ToSkip, At, Blocks);
+
 compact_contiguous(#fs{
     free = Free,
-    files = Files,
     rev_files = [{ID, {RevAt, Length}} | RevFiles]
-} = FS, At, Blocks) ->
+} = FS, ToSkip, At, Blocks) ->
     % Is there a space big enough to fit this file?
     case first_free_span(RevAt, Free, Length) of
         no_space ->
-            compact_contiguous(FS#fs{rev_files = RevFiles}, At, Blocks);
+            compact_contiguous(FS#fs{rev_files = RevFiles}, ToSkip, At, Blocks);
 
         {free, FreeAt, RemainingFree} ->
-            RemainingFiles = remove_file(Files, ID),
             compact_contiguous(
                 FS#fs{
                     free = insert_sorted(RemainingFree, {RevAt, Length}),
-                    files = RemainingFiles,
                     rev_files = RevFiles
                 },
+                ToSkip#{ID => true},
                 if FreeAt == At -> FreeAt + Length; true -> At end,
                 [Blocks | [{FreeAt, lists:duplicate(Length, ID)}]]
             )
     end;
 
-compact_contiguous(#fs{} = FS, At, Blocks) ->
-    compact_contiguous(FS, At + 1, Blocks).
+compact_contiguous(#fs{} = FS, ToSkip, At, Blocks) ->
+    compact_contiguous(FS, ToSkip, At + 1, Blocks).
 
 
 insert_sorted(Free, Span) ->
@@ -289,19 +290,6 @@ first_free_span(Before, [{At, _Stride} = _Next | _Free], _Length, _Skipped) when
 
 first_free_span(Before, [Next | Free], Length, Skipped) ->
     first_free_span(Before, Free, Length, [Next | Skipped]).
-
-
-remove_file(Files, ID) ->
-    remove_file(Files, ID, []).
-
-remove_file([], _ID, Reversed) ->
-    lists:reverse(Reversed);
-
-remove_file([{ID, _} | Files], ID, Reversed) ->
-    lists:reverse(Reversed) ++ Files;
-
-remove_file([File | Files], ID, Reversed) ->
-    remove_file(Files, ID, [File | Reversed]).
 
 
 -ifdef(EUNIT).

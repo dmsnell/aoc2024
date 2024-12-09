@@ -97,9 +97,9 @@ day9p1 (6385338159127) took 17683.342 ms
  ├ min = 0.862 ms
  └ total per = 1.768 ms
 
-day9p2 (6415163624282) took 17610.484 ms
- ├ avg = 586.901 ms
- ├ min = 576.532 ms
- └ total per = 587.016 ms
+day9p2 (6415163624282) took 9669.375 ms
+ ├ avg = 193.278 ms
+ ├ min = 174.629 ms
+ └ total per = 193.388 ms
 ```
 [aoc2024]: (https://adventofcode.com/2024)
