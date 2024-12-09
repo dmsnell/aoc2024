@@ -12,6 +12,7 @@ Solved in 3h 4m.
  - Can probably iterate over the files instead of tracking the free list.
    This might save expensive list operations.
  - Combine FS compaction and hash building to eliminate the intermediate list.
+ - Could store the lists as maps instead of lists to avoid copy costs.
 
 @author Dennis Snell <dmsnell@xkq.io>
 @copyright (C) 2024, Dennis Snell <dmsnell@xkq.io>
@@ -121,6 +122,14 @@ hash([ID | Blocks], Position, Hash) ->
   measured => {avg,{6195.767,ms},min,{6038.112,ms}},
   total_per => {6195.936,ms}}
 ```
+
+#### Optimizations
+
+ - Fixed an issue where first_free_span was returning an unsorted
+   list and causing a slowdown with list sorts. It didn’t need to
+   be sorted, because we can maintain the sorting constraints by
+   construction when building the lists.
+ - Fixed a bug where the free list was getting duplicates.
 """.
 p2_submitted(Buffer) ->
     InitialFS = read_table(Buffer),
@@ -171,7 +180,7 @@ compact_contiguous(#fs{
             RemainingFiles = remove_file(Files, ID),
             compact_contiguous(
                 FS#fs{
-                    free = lists:sort(RemainingFree ++ lists:seq(RevAt, RevAt + Length)),
+                    free = insert_sorted(RemainingFree, lists:seq(RevAt, RevAt + Length - 1)),
                     files = RemainingFiles,
                     rev_files = RevFiles
                 },
@@ -182,6 +191,25 @@ compact_contiguous(#fs{
 
 compact_contiguous(#fs{} = FS, At, Blocks) ->
     compact_contiguous(FS, At + 1, Blocks).
+
+
+insert_sorted(List, Inserted) ->
+    insert_sorted(List, Inserted, []).
+
+insert_sorted([], Inserted, Combined) ->
+    lists:reverse(Combined) ++ Inserted;
+
+insert_sorted(List, [], Combined) ->
+    lists:reverse(Combined) ++ List;
+
+insert_sorted([A | List], [B | _] = Inserted, Combined) when A < B ->
+    insert_sorted(List, Inserted, [A | Combined]);
+
+insert_sorted([A | _] = List, [B | Inserted], Combined) when A > B ->
+    insert_sorted(List, Inserted, [B | Combined]);
+
+insert_sorted([A | List], [B | Inserted], Combined) when A == B ->
+    insert_sorted(List, Inserted, [B | Combined]).
 
 
 first_free_span(_Before, [], _Length) ->
@@ -197,7 +225,7 @@ first_free_span(_Before, [], _Length, _Start, _Prev, _L, _Used, _Skipped) ->
     no_space;
 
 first_free_span(_Before, Free, Length, Start, _Prev, Length, _Used, Skipped) ->
-    {free, Start, lists:reverse(Skipped) ++ Free};
+    {free, Start, Skipped ++ Free};
 
 first_free_span(Before, [Next | _Free], _Length, _Start, _Prev, _L, _Used, _Skipped) when Next >= Before ->
     no_space;
@@ -206,7 +234,7 @@ first_free_span(Before, [Next | Free], Length, Start, Prev, L, Used, Skipped) wh
     first_free_span(Before, Free, Length, Start, Next, L + 1, [Next | Used], Skipped);
 
 first_free_span(Before, [Next | Free], Length, _Start, _Prev, _L, Used, Skipped) ->
-    first_free_span(Before, Free, Length, Next, Next, 1, [Next], lists:reverse(Used) ++ Skipped).
+    first_free_span(Before, Free, Length, Next, Next, 1, [Next], Skipped ++ lists:reverse(Used)).
 
 
 remove_file(Files, ID) ->
@@ -230,5 +258,8 @@ p1_test() ->
 
 p2_test() ->
     ?assertEqual(2858, aoc:test(day9, p2, "day9_a")).
+
+p2_answer_test() ->
+    ?assertEqual(6415163624282, aoc:test(day9, p2, "day9")).
 
 -endif.
