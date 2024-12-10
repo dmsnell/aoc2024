@@ -101,5 +101,15 @@ day9p2 (6415163624282) took 9669.375 ms
  ├ avg = 193.278 ms
  ├ min = 174.629 ms
  └ total per = 193.388 ms
+
+day10p1 (510) took 16040.37 ms
+ ├ avg = 1.56 ms
+ ├ min = 1.317 ms
+ └ total per = 1.604 ms
+
+day10p2 (1058) took 21178.107 ms
+ ├ avg = 2.069 ms
+ ├ min = 1.783 ms
+ └ total per = 2.118 ms
 ```
 [aoc2024]: (https://adventofcode.com/2024)
