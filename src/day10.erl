@@ -119,7 +119,7 @@ trails2(Head, Map, Size) ->
     trails2(Head, 0, Map, Size, #{}).
 
 trails2(From, PrevHeight, Map, Size, Visited) ->
-    case get_steps2(Map, Size, From, PrevHeight, Visited) of
+    case get_steps(Map, Size, From, PrevHeight, Visited) of
         % No further steps means this is a dead-end path.
         [] -> 0;
 
@@ -143,33 +143,19 @@ trails2(From, PrevHeight, Map, Size, Visited) ->
     end.
 
 
-
-bump_ends(PrevEnds, Endings) ->
-    maps:fold(
-        fun (End, _Count, Ends) -> maps:update_with(End, fun (C) -> C + 1 end, 1, Ends) end,
-        PrevEnds,
-        Endings
-    ).
-
-get_steps2(Map, Size, {R, C} = _From, PrevHeight, Visited) ->
-    Neighbors = [
-        {{R + DR, C + DC}, maps:get({R + DR, C + DC}, Map)}
-        ||
-        {DR, DC} <- [{-1, 0}, {0, 1}, {1, 0}, {0, -1}],
-        R + DR > 0, R + DR =< Size,
-        C + DC > 0, C + DC =< Size,
-        not is_map_key({R + DR, C + DC}, Visited)
-    ],
-    [{P, H} || {P, H} <- Neighbors, H == PrevHeight + 1].
-
-
 -ifdef(EUNIT).
 -include_lib("eunit/include/eunit.hrl").
 
 p1_test() ->
     ?assertEqual(36, aoc:test(day10, p1, "day10_a")).
 
+p1_answer_test() ->
+    ?assertEqual(510, aoc:test(day10, p1, "day10")).
+
 p2_test() ->
     ?assertEqual(81, aoc:test(day10, p2, "day10_a")).
+
+p2_answer_test() ->
+    ?assertEqual(1058, aoc:test(day10, p2, "day10")).
 
 -endif.
