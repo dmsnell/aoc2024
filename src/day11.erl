@@ -2,7 +2,10 @@
 -moduledoc """
 Started at 10:00pm
 Part 1 solved at 10:26pm
-Paused at 12:27am, resumed at 8:45am
+Paused at 12:27am, resumed at 8:45am, paused again at 10:00am.
+Resumed at 2:00am
+Part 2 solved at 2:09am
+Solved in 3h 50m
 
 @author Dennis Snell <dmsnell@xkq.io>
 @copyright (C) 2024, Dennis Snell <dmsnell@xkq.io>
@@ -15,18 +18,28 @@ Created : 10. Dec 2024 9:33 PM
 
 config() -> #{
     p1 => {fun p1_submitted/1, raw},
-    p2 => {fun p2_submitted/1, raw}
+    p2 => {fun p2_grouped/1, raw}
 }.
 
+-doc """
+#### Benchmark
+
+```
+{day11,p1,
+   #{total => {48251.436,ms},
+     answer => 197357,
+     measured => {avg,{48.143,ms},min,{42.874,ms}},
+     total_per => {48.251,ms}}}
+```
+""".
 p1_submitted(Data) ->
     Stones = load(Data),
     FinalStones = lists:foldl(
-        fun (I, PrevStones) ->
-            io:format("\e[90mFolding (\e[33m~p\e[90m): \e[34m~40.ts\e[m\n", [76 - I, lists:join(<<" ">>, PrevStones)]),
+        fun (_I, PrevStones) ->
             step(PrevStones)
         end,
         Stones,
-        lists:seq(1,75)
+        lists:seq(1,25)
     ),
     length(FinalStones).
 
@@ -78,7 +91,7 @@ Try: Store a dictionary-like lookup using LZW-like compression.
      If it is, check if the sequence of it and the next are also there.
      Keep doing this until an arbitrary dictionary size.
 """.
-p2_submitted(RawData) ->
+p2_failed_lzw(RawData) ->
     % End every number in a space to eliminate the special-case of the last one.
     Data = <<(string:trim(RawData))/binary, " ">>,
     p2_fold(Data, #{}, 75).
@@ -88,7 +101,6 @@ p2_fold(Data, _Cache, 0) ->
     count(Data);
 
 p2_fold(Data, Cache, N) ->
-    io:format("\e[90mFolding (\e[33m~p\e[90m): \e[2;33m~ts\e[m\n", [N, binary:part(Data, 0, min(40, byte_size(Data)))]),
     {NextData, NextCache} = step(first, Data, Cache, <<>>),
     p2_fold(NextData, NextCache, N - 1).
 
@@ -223,6 +235,68 @@ rule2(Digits) when byte_size(Digits) rem 2 == 1 ->
 rule2(Digits) ->
     {{N, _L}, <<>>} = day1:int(Digits, 0, 0),
     <<(integer_to_binary(N * 2024))/binary, " ">>.
+
+-doc """
+#### Benchmark
+
+```
+{day11,p2,
+   #{total => {63856.207,ms},
+     answer => 234568186890978,
+     measured => {avg,{63.763,ms},min,{56.495,ms}},
+     total_per => {63.856,ms}}}
+```
+""".
+p2_grouped(Buffer) ->
+    Groups = group(load(string:trim(Buffer))),
+    FinalGroups = lists:foldl(
+        fun (_I, PrevGroups) ->
+            group_step(PrevGroups)
+        end,
+        Groups,
+        lists:seq(1, 75)
+    ),
+    lists:sum([C || {_, C} <- FinalGroups]).
+
+
+group_step(Groups) ->
+    NewGroups = lists:flatten([
+        case rule(Stone) of
+            [Left, Right] ->
+                [{Left, Count}, {Right, Count}];
+
+            NewStone ->
+                {NewStone, Count}
+        end
+        ||
+        {Stone, Count} <- Groups
+    ]),
+    Merged = lists:foldl(
+        fun ({S, C}, Prev) ->
+            maps:update_with(
+                S,
+                fun (C0) -> C0 + C end,
+                C,
+                Prev
+            )
+        end,
+        #{},
+        NewGroups
+    ),
+    maps:to_list(Merged).
+
+
+group(Stones) ->
+    [Stone | Sorted] = lists:sort(Stones),
+    group(Sorted, [], Stone, 1).
+
+group([], Groups, Stone, GroupCount) ->
+    [{Stone, GroupCount} | Groups];
+group([Stone | Stones], Groups, Stone, GroupCount) ->
+    group(Stones, Groups, Stone, GroupCount + 1);
+group([Stone | Stones], Groups, Another, GroupCount) ->
+    group(Stones, [{Another, GroupCount} | Groups], Stone, 1).
+
 
 -ifdef(EUNIT).
 -include_lib("eunit/include/eunit.hrl").

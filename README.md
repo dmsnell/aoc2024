@@ -112,7 +112,15 @@ day10p2 (1058) took 21178.107 ms
  ├ min = 1.783 ms
  └ total per = 2.118 ms
 
-@todo Day 11
+day11p1 (197357) took 48251.436 ms
+ ├ avg = 48.143 ms
+ ├ min = 42.874 ms
+ └ total per = 48.251 ms
+
+day11p2 (234568186890978) took 63856.207 ms
+ ├ avg = 63.763 ms
+ ├ min = 56.495 ms
+ └ total per = 63.856 ms
 
 day12p1 (1485656) took 84380.436 ms
  ├ avg = 84.256 ms
