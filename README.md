@@ -111,5 +111,17 @@ day10p2 (1058) took 21178.107 ms
  ├ avg = 2.069 ms
  ├ min = 1.783 ms
  └ total per = 2.118 ms
+
+@todo Day 11
+
+day12p1 (1485656) took 84380.436 ms
+ ├ avg = 84.256 ms
+ ├ min = 78.344 ms
+ └ total per = 84.38 ms
+
+day12p2 (899196) took 102738.029 ms
+ ├ avg = 102.598 ms
+ ├ min = 92.104 ms
+ └ total per = 102.738 ms
 ```
 [aoc2024]: (https://adventofcode.com/2024)
