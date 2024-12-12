@@ -305,6 +305,6 @@ p1_test() ->
     ?assertEqual(55312, aoc:test(day11, p1, "day11_a")).
 
 p2_test() ->
-    ?assertEqual(55312, aoc:test(day11, p2, "day11_a")).
+    ?assertEqual(234568186890978, aoc:test(day11, p2, "day11")).
 
 -endif.
