@@ -131,5 +131,15 @@ day12p2 (899196) took 102738.029 ms
  ├ avg = 102.598 ms
  ├ min = 92.104 ms
  └ total per = 102.738 ms
+
+day13p1 (39996) took 1200.601 ms
+ ├ avg = 11.913 ms
+ ├ min = 11.383 ms
+ └ total per = 12.006 ms
+
+day13p2 (73267584326867) took 4461.005 ms
+ ├ avg = 0.141 ms
+ ├ min = 0.099 ms
+ └ total per = 0.223 ms
 ```
 [aoc2024]: (https://adventofcode.com/2024)
